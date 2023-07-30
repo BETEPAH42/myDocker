@@ -1,0 +1,49 @@
+version: '3'
+# Список наших сервисов (контейнеров)
+services:
+
+  nginx:
+    # используем последний стабильный образ nginx
+    image: nginx:1.25
+    container_name: ${PROJECT_PREFIX}_nginx
+    # маршрутизируем порты
+    ports:
+      - "80:80"
+      - "443:443"
+    # монтируем директории, слева директории на основной машине, справа - куда они монтируются в контейнере
+    volumes:
+      - ./container/nginx/conf:/etc/nginx/conf.d
+      - ../html:/var/www/html
+      - ../logs/nginx:/var/log/nginx
+    depends_on:
+      - php
+
+  php:
+    # у нас свой образ для PHP, указываем путь к нему и говорим что его надо собрать
+    build: ./container/php
+    container_name: ${PROJECT_PREFIX}_php
+    depends_on:
+      - mysql
+    ports:
+      - "8080:80"
+    working_dir: /var/www/html
+    # монтируем директорию с проектами
+    volumes:
+      - ../html:/var/www/html
+
+  mysql:
+    image: mysql
+    command: --default-authentication-plugin=mysql_native_password
+    container_name: ${PROJECT_PREFIX}_mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ./container/mysql/my.cfg:/etc/mysql/conf.d/aloneisland.cfg:ro
+      - ./data/mysql:/var/lib/mysql
+      - ./container/mysql/sql/:/docker-entrypoint-initdb.d/
